@@ -51,6 +51,7 @@ export const FLASH_COLOR_NEUTRAL = 'neutral';
 export const FLASH_COLOR_WARNING = 'warning';
 export const FLASH_COLOR_AI_SHIELD = 'ai_shield';
 export const FLASH_COLOR_FLIGHT = 'flight';
+export const FLASH_COLOR_GOOD = 'good';
 
 export const DEFAULT_POLICY: Policy = {
   brackets: [

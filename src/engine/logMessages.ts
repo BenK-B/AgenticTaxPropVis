@@ -42,3 +42,35 @@ export function writeOffLog(tick: number, writeOffFactor: number): BehaviorLogEn
     message: `Increased reinvestment write-offs to shelter ${pct(writeOffFactor)}% of taxable income.`,
   };
 }
+
+export function jobLossLog(tick: number, months: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'job_loss',
+    message: `Hit a setback — income dropped sharply, expected to last ~${months} month${months === 1 ? '' : 's'}.`,
+  };
+}
+
+export function incomeBoostLog(tick: number, months: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'income_boost',
+    message: `Got a break — income jumped for the next ~${months} month${months === 1 ? '' : 's'} (raise, bonus, or a busy stretch).`,
+  };
+}
+
+export function expenseShockLog(tick: number, amount: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'expense_shock',
+    message: `Hit with an unexpected expense of ${usd(amount)}.`,
+  };
+}
+
+export function windfallLog(tick: number, amount: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'windfall',
+    message: `Received a windfall of ${usd(amount)}.`,
+  };
+}

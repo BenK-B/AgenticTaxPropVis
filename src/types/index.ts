@@ -1,4 +1,4 @@
-export type { Archetype, ArchetypeConfig } from './archetype';
+export type { Archetype, ArchetypeConfig, IncomeShockSpec, WealthShockSpec, LifeShockConfig } from './archetype';
 export type {
   Agent,
   AgentHistoryEntry,

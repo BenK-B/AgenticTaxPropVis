@@ -8,6 +8,10 @@ const KIND_COLOR: Record<BehaviorLogKind, string> = {
   write_off: 'var(--archetype-business)',
   ai_shield: 'var(--series-avoided)',
   ubi: 'var(--status-good)',
+  job_loss: 'var(--status-critical)',
+  income_boost: 'var(--status-good)',
+  expense_shock: 'var(--status-warning)',
+  windfall: 'var(--status-good)',
 };
 
 export function BehaviorLogFeed({ entries }: { entries: BehaviorLogEntry[] }) {

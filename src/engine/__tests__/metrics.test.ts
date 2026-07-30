@@ -17,6 +17,8 @@ function makeAgent(wealth: number, overrides: Partial<Agent> = {}): Agent {
     auditCooldownUntil: 0,
     aiExposure: 0,
     aiShieldFraction: 0,
+    incomeShockMultiplier: 1,
+    incomeShockMonthsRemaining: 0,
     position: { x: 0.5, y: 0.5 },
     velocity: { x: 0, y: 0 },
     targetPosition: { x: 0.5, y: 0.5 },

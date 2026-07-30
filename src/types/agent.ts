@@ -14,7 +14,11 @@ export type BehaviorLogKind =
   | 'audit_clear'
   | 'write_off'
   | 'ai_shield'
-  | 'ubi';
+  | 'ubi'
+  | 'job_loss'
+  | 'income_boost'
+  | 'expense_shock'
+  | 'windfall';
 
 export interface BehaviorLogEntry {
   tick: number;
@@ -39,6 +43,10 @@ export interface Agent {
   auditCooldownUntil: number;
   aiExposure: number;
   aiShieldFraction: number;
+  /** 1 = normal; temporarily <1 during a job loss/slump or >1 during a bonus/boom. */
+  incomeShockMultiplier: number;
+  /** Months left before incomeShockMultiplier reverts to 1. */
+  incomeShockMonthsRemaining: number;
   position: { x: number; y: number };
   velocity: { x: number; y: number };
   targetPosition: { x: number; y: number };

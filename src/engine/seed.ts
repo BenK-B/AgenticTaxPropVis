@@ -36,6 +36,8 @@ export function seedAgents(count: number, archetypeRatios: Record<Archetype, num
       auditCooldownUntil: 0,
       aiExposure,
       aiShieldFraction: 0,
+      incomeShockMultiplier: 1,
+      incomeShockMonthsRemaining: 0,
       position: startPosition,
       velocity: { x: 0, y: 0 },
       targetPosition: startPosition,

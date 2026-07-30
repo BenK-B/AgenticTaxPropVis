@@ -1,6 +1,6 @@
 import type { Agent, BehaviorWeights, EngineState, MetricsSnapshot, Policy } from '@/types';
 import type { RNG } from './random';
-import { gaussian } from './random';
+import { gaussian, uniform } from './random';
 import { ARCHETYPE_CONFIGS } from './archetypes';
 import { calculateBracketTax, calculateBusinessAiTax, calculateEquityCaptureTax, marginalRateFor } from './tax';
 import { decideAiShield, decideCapitalFlight, decideEvasion, writeOffFactorFor } from './behavior';
@@ -12,7 +12,11 @@ import {
   auditCaughtLog,
   auditClearLog,
   evasionLog,
+  expenseShockLog,
   flightLog,
+  incomeBoostLog,
+  jobLossLog,
+  windfallLog,
   writeOffLog,
 } from './logMessages';
 import {
@@ -21,6 +25,7 @@ import {
   FLASH_COLOR_AI_SHIELD,
   FLASH_COLOR_CRITICAL,
   FLASH_COLOR_FLIGHT,
+  FLASH_COLOR_GOOD,
   FLASH_COLOR_NEUTRAL,
   FLASH_COLOR_WARNING,
   FLASH_EVENT_MS,
@@ -82,9 +87,49 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     const wealthPercentile = n > 1 ? i / (n - 1) : 0.5;
     const config = ARCHETYPE_CONFIGS[agent.archetype];
 
+    // 0. Life shocks: a temporary income disruption/boost (job loss, raise, business swing) and
+    // an independent one-off lump sum to wealth (emergency expense, windfall). Layered on top of
+    // the steady drift below so wealth can genuinely fall as well as rise — otherwise it only
+    // ratchets upward (see savingsRate), which is why nobody ever falls back under a poverty-line
+    // threshold once the sim has run a while.
+    const shocks = config.lifeShocks;
+    if (agent.incomeShockMonthsRemaining > 0) {
+      agent.incomeShockMonthsRemaining -= 1;
+      if (agent.incomeShockMonthsRemaining <= 0) agent.incomeShockMultiplier = 1;
+    } else if (rng() < shocks.negativeIncomeShock.pMonthly) {
+      agent.incomeShockMultiplier = uniform(rng, shocks.negativeIncomeShock.multiplierRange[0], shocks.negativeIncomeShock.multiplierRange[1]);
+      const months = Math.round(uniform(rng, shocks.negativeIncomeShock.durationMonthsRange[0], shocks.negativeIncomeShock.durationMonthsRange[1]));
+      agent.incomeShockMonthsRemaining = months;
+      pushRingBuffer(agent.behaviorLog, jobLossLog(nextTickNumber, months), BEHAVIOR_LOG_LENGTH);
+      agent.flashUntil = nowMs + FLASH_RED_MS;
+      agent.flashColor = FLASH_COLOR_CRITICAL;
+    } else if (rng() < shocks.positiveIncomeShock.pMonthly) {
+      agent.incomeShockMultiplier = uniform(rng, shocks.positiveIncomeShock.multiplierRange[0], shocks.positiveIncomeShock.multiplierRange[1]);
+      const months = Math.round(uniform(rng, shocks.positiveIncomeShock.durationMonthsRange[0], shocks.positiveIncomeShock.durationMonthsRange[1]));
+      agent.incomeShockMonthsRemaining = months;
+      pushRingBuffer(agent.behaviorLog, incomeBoostLog(nextTickNumber, months), BEHAVIOR_LOG_LENGTH);
+      agent.flashUntil = nowMs + FLASH_EVENT_MS;
+      agent.flashColor = FLASH_COLOR_GOOD;
+    }
+
+    let wealthShockAmount = 0;
+    if (rng() < shocks.negativeWealthShock.pMonthly) {
+      const amount = uniform(rng, shocks.negativeWealthShock.monthsOfIncomeRange[0], shocks.negativeWealthShock.monthsOfIncomeRange[1]) * (agent.income / 12);
+      wealthShockAmount -= amount;
+      pushRingBuffer(agent.behaviorLog, expenseShockLog(nextTickNumber, amount), BEHAVIOR_LOG_LENGTH);
+      agent.flashUntil = nowMs + FLASH_EVENT_MS;
+      agent.flashColor = FLASH_COLOR_WARNING;
+    } else if (rng() < shocks.positiveWealthShock.pMonthly) {
+      const amount = uniform(rng, shocks.positiveWealthShock.monthsOfIncomeRange[0], shocks.positiveWealthShock.monthsOfIncomeRange[1]) * (agent.income / 12);
+      wealthShockAmount += amount;
+      pushRingBuffer(agent.behaviorLog, windfallLog(nextTickNumber, amount), BEHAVIOR_LOG_LENGTH);
+      agent.flashUntil = nowMs + FLASH_EVENT_MS;
+      agent.flashColor = FLASH_COLOR_GOOD;
+    }
+
     // 1. Income generation.
     const growthFactor = 1 + gaussian(rng, 0, 0.01);
-    const monthlyIncome = (agent.income / 12) * growthFactor;
+    const monthlyIncome = (agent.income / 12) * growthFactor * agent.incomeShockMultiplier;
     agent.income *= growthFactor;
 
     const capitalReturn = config.capitalReturnMonthly
@@ -181,7 +226,7 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     // investment growth, not consumable income, so they still accrue in full.
     const netOrdinaryIncome = monthlyIncome - incomeTaxPaid - aiTaxOwed;
     const netCapitalIncome = capitalReturn - capGainsTaxPaid - equityCapturedOwed;
-    agent.wealth = Math.max(0, agent.wealth + netOrdinaryIncome * config.savingsRate + netCapitalIncome);
+    agent.wealth = Math.max(0, agent.wealth + netOrdinaryIncome * config.savingsRate + netCapitalIncome + wealthShockAmount);
     activeIncomeRecords.push({ agent, monthlyIncome, taxPaid });
   }
 

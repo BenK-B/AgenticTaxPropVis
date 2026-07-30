@@ -3,6 +3,7 @@ import {
   FLASH_COLOR_AI_SHIELD,
   FLASH_COLOR_CRITICAL,
   FLASH_COLOR_FLIGHT,
+  FLASH_COLOR_GOOD,
   FLASH_COLOR_NEUTRAL,
   FLASH_COLOR_WARNING,
 } from '@/engine/constants';
@@ -32,6 +33,7 @@ export const FLASH_COLOR_CSS_VAR: Record<string, string> = {
   [FLASH_COLOR_WARNING]: '--status-warning',
   [FLASH_COLOR_AI_SHIELD]: '--series-avoided',
   [FLASH_COLOR_FLIGHT]: '--series-flight',
+  [FLASH_COLOR_GOOD]: '--status-good',
 };
 
 /** For DOM style attributes (e.g. `accent-color`), where var() is resolved by the browser itself. */
