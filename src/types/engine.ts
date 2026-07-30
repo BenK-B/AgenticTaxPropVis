@@ -9,6 +9,8 @@ export interface EngineState {
   tick: number;
   simDate: SimDate;
   agents: Agent[];
+  /** Public equity fund's running stock of captured-but-not-yet-liquidated AI-linked equity. */
+  equityFundBalance: number;
 }
 
 export interface BehaviorWeights {

@@ -1,5 +1,5 @@
 import { useSimStore } from '@/state/useSimStore';
-import { formatPercent, formatUSD } from '@/utils/format';
+import { formatPercent } from '@/utils/format';
 import { cssVar } from '../Canvas/colorMap';
 import { FieldRow } from './FieldRow';
 import { BracketSliders } from './BracketSliders';
@@ -31,16 +31,6 @@ export function PolicyControls() {
         step={0.005}
         accentColor={cssVar('--status-critical')}
         formatValue={(v) => formatPercent(v, 1)}
-      />
-      <FieldRow
-        label="UBI payout"
-        value={policy.ubiPayout}
-        onChange={(v) => setPolicy({ ubiPayout: v })}
-        min={0}
-        max={3000}
-        step={50}
-        accentColor={cssVar('--status-good')}
-        formatValue={formatUSD}
       />
     </div>
   );

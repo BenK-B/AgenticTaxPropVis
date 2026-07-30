@@ -8,7 +8,12 @@ import type { EngineState, Policy } from '@/types';
 
 function makeInitialState(count = 300, seed = 42): EngineState {
   const rng = mulberry32(seed);
-  return { tick: 0, simDate: { year: 1, month: 1 }, agents: seedAgents(count, DEFAULT_ARCHETYPE_RATIOS, rng) };
+  return {
+    tick: 0,
+    simDate: { year: 1, month: 1 },
+    agents: seedAgents(count, DEFAULT_ARCHETYPE_RATIOS, rng),
+    equityFundBalance: 0,
+  };
 }
 
 describe('tick', () => {
@@ -22,7 +27,12 @@ describe('tick', () => {
   });
 
   it('rolls the year over after month 12', () => {
-    const state: EngineState = { tick: 11, simDate: { year: 1, month: 12 }, agents: seedAgents(50, DEFAULT_ARCHETYPE_RATIOS, mulberry32(2)) };
+    const state: EngineState = {
+      tick: 11,
+      simDate: { year: 1, month: 12 },
+      agents: seedAgents(50, DEFAULT_ARCHETYPE_RATIOS, mulberry32(2)),
+      equityFundBalance: 0,
+    };
     const result = tick(state, DEFAULT_POLICY, DEFAULT_BEHAVIOR_WEIGHTS, mulberry32(3), 0);
     expect(result.metrics.simDate).toEqual({ year: 2, month: 1 });
   });
@@ -44,24 +54,61 @@ describe('tick', () => {
     }
   });
 
-  it('a flat UBI payout with zero tax strictly increases total wealth tick over tick', () => {
-    const zeroTaxPolicy: Policy = {
+  it('when enabled, UBI disbursed equals the AI-tax pot collected that tick (flat split)', () => {
+    const policy: Policy = {
       ...DEFAULT_POLICY,
-      brackets: [
-        { threshold: 0, rate: 0 },
-        { threshold: 45000, rate: 0 },
-        { threshold: 180000, rate: 0 },
-      ],
-      capitalGainsRate: 0,
-      auditBudgetPct: 0,
-      ubiPayout: 500,
+      aiTaxMechanisms: {
+        ...DEFAULT_POLICY.aiTaxMechanisms,
+        tokenTax: { enabled: true, rate: 0.2 },
+      },
+      ubi: { enabled: true, taperStrength: 0 },
     };
-    let state = makeInitialState(200, 11);
-    const rng = mulberry32(12);
-    const before = state.agents.reduce((sum, a) => sum + a.wealth, 0);
-    const result = tick(state, zeroTaxPolicy, DEFAULT_BEHAVIOR_WEIGHTS, rng, 0);
-    const after = result.state.agents.reduce((sum, a) => sum + a.wealth, 0);
-    expect(after).toBeGreaterThan(before);
+    const state = makeInitialState(300, 31);
+    const result = tick(state, policy, DEFAULT_BEHAVIOR_WEIGHTS, mulberry32(32), 0);
+    expect(result.metrics.aiTaxRevenueCollected).toBeGreaterThan(0);
+    expect(result.metrics.ubiPaidOut).toBeCloseTo(result.metrics.aiTaxRevenueCollected, 6);
+  });
+
+  it('taper strength reweights who gets UBI but not the total disbursed', () => {
+    const basePolicy: Policy = {
+      ...DEFAULT_POLICY,
+      aiTaxMechanisms: {
+        ...DEFAULT_POLICY.aiTaxMechanisms,
+        tokenTax: { enabled: true, rate: 0.2 },
+      },
+    };
+    const flatState = makeInitialState(300, 41);
+    const flatResult = tick(flatState, { ...basePolicy, ubi: { enabled: true, taperStrength: 0 } }, DEFAULT_BEHAVIOR_WEIGHTS, mulberry32(42), 0);
+
+    const taperedState = makeInitialState(300, 41);
+    const taperedResult = tick(
+      taperedState,
+      { ...basePolicy, ubi: { enabled: true, taperStrength: 1 } },
+      DEFAULT_BEHAVIOR_WEIGHTS,
+      mulberry32(42),
+      0,
+    );
+
+    // Same seed/policy apart from taper -> same AI-tax pot, and the total redistributed should
+    // still match it regardless of taper strength (taper only changes who gets how much).
+    expect(taperedResult.metrics.aiTaxRevenueCollected).toBeCloseTo(flatResult.metrics.aiTaxRevenueCollected, 6);
+    expect(flatResult.metrics.ubiPaidOut).toBeCloseTo(flatResult.metrics.aiTaxRevenueCollected, 6);
+    expect(taperedResult.metrics.ubiPaidOut).toBeCloseTo(taperedResult.metrics.aiTaxRevenueCollected, 6);
+  });
+
+  it('pays no UBI when disabled, even with AI-tax revenue available', () => {
+    const policy: Policy = {
+      ...DEFAULT_POLICY,
+      aiTaxMechanisms: {
+        ...DEFAULT_POLICY.aiTaxMechanisms,
+        tokenTax: { enabled: true, rate: 0.2 },
+      },
+      ubi: { enabled: false, taperStrength: 0.5 },
+    };
+    const state = makeInitialState(300, 51);
+    const result = tick(state, policy, DEFAULT_BEHAVIOR_WEIGHTS, mulberry32(52), 0);
+    expect(result.metrics.aiTaxRevenueCollected).toBeGreaterThan(0);
+    expect(result.metrics.ubiPaidOut).toBe(0);
   });
 
   it('reconciles collected + evaded + avoided against what would have been owed with no evasion/avoidance', () => {
@@ -96,5 +143,60 @@ describe('tick', () => {
     }
     expect(anyEvaded).toBe(true);
     expect(anyAiTax).toBe(true);
+  });
+
+  describe('equity capture fund', () => {
+    function equityPolicy(annualLiquidationPct = 0.5): Policy {
+      return {
+        ...DEFAULT_POLICY,
+        aiTaxMechanisms: {
+          ...DEFAULT_POLICY.aiTaxMechanisms,
+          equityCapture: { enabled: true, rate: 0.3, annualLiquidationPct },
+        },
+      };
+    }
+
+    it('accrues captured equity into the fund without recognizing it as AI-tax revenue on non-liquidation ticks', () => {
+      let state = makeInitialState(400, 61);
+      const rng = mulberry32(62);
+      const policy = equityPolicy();
+      for (let i = 0; i < 11; i++) {
+        const result = tick(state, policy, DEFAULT_BEHAVIOR_WEIGHTS, rng, i * 20);
+        state = result.state;
+        expect(result.metrics.equityFundLiquidated).toBe(0);
+        expect(result.metrics.aiTaxRevenueCollected).toBe(0);
+      }
+      expect(state.equityFundBalance).toBeGreaterThan(0);
+    });
+
+    it('liquidates the configured share of the fund every 12th tick and feeds it into the AI-tax pot', () => {
+      let state = makeInitialState(400, 71);
+      const rng = mulberry32(72);
+      const policy = equityPolicy(0.3);
+      let lastResult;
+      for (let i = 0; i < 12; i++) {
+        lastResult = tick(state, policy, DEFAULT_BEHAVIOR_WEIGHTS, rng, i * 20);
+        state = lastResult.state;
+      }
+      // Reconstruct the fund's balance immediately before this tick's liquidation: post-tick
+      // balance plus whatever was just sold off.
+      const balanceBeforeLiquidation = state.equityFundBalance + lastResult!.metrics.equityFundLiquidated;
+      expect(lastResult!.metrics.equityFundLiquidated).toBeGreaterThan(0);
+      expect(lastResult!.metrics.equityFundLiquidated).toBeCloseTo(balanceBeforeLiquidation * 0.3, 6);
+      expect(lastResult!.metrics.aiTaxRevenueCollected).toBeCloseTo(lastResult!.metrics.equityFundLiquidated, 6);
+      // 70% of the accrued fund remains as the ongoing public stake.
+      expect(state.equityFundBalance).toBeCloseTo(balanceBeforeLiquidation * 0.7, 6);
+    });
+
+    it('never liquidates when the mechanism has never captured anything', () => {
+      let state = makeInitialState(200, 81);
+      const rng = mulberry32(82);
+      for (let i = 0; i < 24; i++) {
+        const result = tick(state, DEFAULT_POLICY, DEFAULT_BEHAVIOR_WEIGHTS, rng, i * 20);
+        state = result.state;
+        expect(result.metrics.equityFundLiquidated).toBe(0);
+      }
+      expect(state.equityFundBalance).toBe(0);
+    });
   });
 });

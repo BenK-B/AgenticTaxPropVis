@@ -6,6 +6,6 @@ export type {
   BehaviorLogKind,
   ComplianceStatus,
 } from './agent';
-export type { Policy, TaxBracket, AiTaxMechanism, AiTaxMechanisms } from './policy';
+export type { Policy, TaxBracket, AiTaxMechanism, AiTaxMechanisms, EquityCaptureMechanism, UbiPolicy } from './policy';
 export type { EngineState, SimDate, BehaviorWeights, SpeedMultiplier } from './engine';
 export type { MetricsSnapshot } from './metrics';

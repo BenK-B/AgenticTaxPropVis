@@ -10,6 +10,16 @@ export interface AiTaxMechanism {
   rate: number;
 }
 
+export interface EquityCaptureMechanism extends AiTaxMechanism {
+  /**
+   * 0-1, share of the accumulated public equity fund sold off once a year (every 12 ticks).
+   * Unlike the other 4 mechanisms, captured equity isn't recognized as spendable revenue the
+   * month it's captured — it accrues as a public stake, and only this annual sale converts a
+   * slice of it to cash, which is what actually reaches the AI-tax revenue pot (and UBI).
+   */
+  annualLiquidationPct: number;
+}
+
 export interface AiTaxMechanisms {
   /** Per-token compute tax on AI-attributed business revenue. */
   tokenTax: AiTaxMechanism;
@@ -20,7 +30,19 @@ export interface AiTaxMechanisms {
   /** Digital services / robot-automation tax on AI-attributed business revenue. */
   automationTax: AiTaxMechanism;
   /** Bernie Sanders-style: public equity fund captures a % of AI-linked capital gains. */
-  equityCapture: AiTaxMechanism;
+  equityCapture: EquityCaptureMechanism;
+}
+
+export interface UbiPolicy {
+  /** When on, 100% of that tick's AI/automation tax revenue is redistributed as UBI. */
+  enabled: boolean;
+  /**
+   * 0-1. 0 = flat equal split across active agents. 1 = maximally progressive — weights the
+   * split so the lowest-income agents get roughly double the flat share and the highest-income
+   * agents approach a zero share. The total payout always equals the AI-tax pot regardless of
+   * this value; it only changes who gets how much of it.
+   */
+  taperStrength: number;
 }
 
 export interface Policy {
@@ -28,7 +50,7 @@ export interface Policy {
   capitalGainsRate: number;
   /** 0-1, fraction of active population audited per tick. */
   auditBudgetPct: number;
-  /** Flat monthly $ paid to every active agent. */
-  ubiPayout: number;
+  /** UBI is funded entirely by AI/automation tax revenue, not general appropriation. */
+  ubi: UbiPolicy;
   aiTaxMechanisms: AiTaxMechanisms;
 }

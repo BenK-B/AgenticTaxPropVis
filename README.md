@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+A vibe-coded agentic AI tax visualization. None of the values are checked or certified by any real sources. 
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

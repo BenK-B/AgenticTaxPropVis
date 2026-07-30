@@ -1,7 +1,7 @@
 import type { Agent, Archetype } from '@/types';
 import { clamp, lerp } from './mathUtils';
 
-const ARCHETYPE_X_CENTER: Record<Archetype, number> = {
+export const ARCHETYPE_X_CENTER: Record<Archetype, number> = {
   W2_Worker: 0.18,
   Freelancer: 0.4,
   Business_Owner: 0.62,
@@ -47,6 +47,16 @@ function jitterFor(agent: Agent): AgentJitter {
 }
 
 /**
+ * The wealth-percentile -> y-fraction mapping the engine uses for clustering (wealthy near the
+ * top), without the per-agent jitter term. Exported so UI overlays (axis labels, poverty line)
+ * can position themselves at the same coordinates the agents actually cluster around, instead
+ * of duplicating these constants.
+ */
+export function wealthPercentileToY(percentile: number): number {
+  return clamp(0.92 - percentile * 0.82, 0.06, 0.96);
+}
+
+/**
  * Wealth-zone clustering target: y is driven by wealth percentile (wealthy near the top),
  * x by a per-archetype cluster center with stable per-agent jitter. Agents mid-flight target
  * the nearest canvas edge instead. Mutates `agent.targetPosition` in place rather than
@@ -62,7 +72,7 @@ export function computeTargetPosition(agent: Agent, wealthPercentile: number): v
     return;
   }
   const centerX = ARCHETYPE_X_CENTER[agent.archetype];
-  target.y = clamp(0.92 - wealthPercentile * 0.82 + jitter.y, 0.06, 0.96);
+  target.y = clamp(wealthPercentileToY(wealthPercentile) + jitter.y, 0.06, 0.96);
   target.x = clamp(centerX + jitter.x, 0.04, 0.96);
 }
 

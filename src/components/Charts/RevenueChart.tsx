@@ -1,64 +1,61 @@
-import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useSimStore } from '@/state/useSimStore';
-import { formatCompactUSD } from '@/utils/format';
+import { formatUSD } from '@/utils/format';
 import { ChartCard } from './ChartCard';
 import { ChartTooltip } from './ChartTooltip';
 
 export function RevenueChart() {
   const metricsHistory = useSimStore((s) => s.metricsHistory);
-  const data = metricsHistory.map((m) => ({
-    tick: m.tick,
-    Collected: m.taxRevenueCollected,
-    Evaded: m.taxRevenueEvaded,
-    Avoided: m.taxRevenueAvoided,
-  }));
+  const data = metricsHistory.map((m) => {
+    const perAgent = m.activeAgentCount > 0 ? m.activeAgentCount : 1;
+    return {
+      tick: m.tick,
+      Collected: m.taxRevenueCollected / perAgent,
+      Evaded: m.taxRevenueEvaded / perAgent,
+      Avoided: m.taxRevenueAvoided / perAgent,
+    };
+  });
 
   return (
-    <ChartCard title="Tax revenue: collected / evaded / avoided">
+    <ChartCard title="Tax revenue per agent: collected / evaded / avoided" subtitle="Monthly $ per active agent, averaged across the population">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--gridline)" vertical={false} />
           <XAxis dataKey="tick" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={{ stroke: 'var(--baseline)' }} tickLine={false} />
           <YAxis
-            tickFormatter={(v) => formatCompactUSD(v)}
+            tickFormatter={(v) => formatUSD(v)}
             tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
-            width={44}
+            width={56}
           />
-          <Tooltip content={<ChartTooltip formatValue={formatCompactUSD} />} />
+          <Tooltip content={<ChartTooltip formatValue={formatUSD} />} />
           <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-secondary)' }} iconType="line" iconSize={10} />
-          <Area
+          <Line
             type="monotone"
             dataKey="Collected"
-            stackId="revenue"
             stroke="var(--series-collected)"
-            fill="var(--series-collected)"
-            fillOpacity={0.35}
-            strokeWidth={1.5}
+            strokeWidth={2}
+            dot={false}
             isAnimationActive={false}
           />
-          <Area
+          <Line
             type="monotone"
             dataKey="Evaded"
-            stackId="revenue"
             stroke="var(--series-evaded)"
-            fill="var(--series-evaded)"
-            fillOpacity={0.35}
-            strokeWidth={1.5}
+            strokeWidth={2}
+            dot={false}
             isAnimationActive={false}
           />
-          <Area
+          <Line
             type="monotone"
             dataKey="Avoided"
-            stackId="revenue"
             stroke="var(--series-avoided)"
-            fill="var(--series-avoided)"
-            fillOpacity={0.35}
-            strokeWidth={1.5}
+            strokeWidth={2}
+            dot={false}
             isAnimationActive={false}
           />
-        </AreaChart>
+        </LineChart>
       </ResponsiveContainer>
     </ChartCard>
   );

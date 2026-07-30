@@ -48,8 +48,16 @@ describe('useSimStore + engineRunner (headless, no React/canvas)', () => {
   });
 
   it('setPolicy pushes changes into the engine without needing a restart', () => {
-    useSimStore.getState().setPolicy({ ubiPayout: 999 });
-    expect(useSimStore.getState().policy.ubiPayout).toBe(999);
+    useSimStore.getState().setPolicy({ auditBudgetPct: 0.1 });
+    expect(useSimStore.getState().policy.auditBudgetPct).toBe(0.1);
+  });
+
+  it('setUbi updates only the targeted field', () => {
+    useSimStore.getState().setUbi({ enabled: true });
+    expect(useSimStore.getState().policy.ubi.enabled).toBe(true);
+    expect(useSimStore.getState().policy.ubi.taperStrength).toBe(0);
+    useSimStore.getState().setUbi({ taperStrength: 0.7 });
+    expect(useSimStore.getState().policy.ubi).toEqual({ enabled: true, taperStrength: 0.7 });
   });
 
   it('setAiTaxMechanism updates only the targeted mechanism', () => {

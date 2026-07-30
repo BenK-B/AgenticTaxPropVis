@@ -3,7 +3,8 @@ import { useSimStore } from '@/state/useSimStore';
 import { engineRunner } from '@/state/engineBridge';
 import { renderFrame } from './renderer';
 import { findAgentAtPoint } from './hitTest';
-import { DevFpsOverlay } from './devFpsOverlay';
+import { CanvasLabels } from './CanvasLabels';
+import { WealthScale } from './WealthScale';
 
 export function SimCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,7 +59,8 @@ export function SimCanvas() {
   return (
     <div className="absolute inset-0">
       <canvas ref={canvasRef} onClick={handleClick} className="w-full h-full block cursor-pointer" />
-      {import.meta.env.DEV && <DevFpsOverlay />}
+      <WealthScale />
+      <CanvasLabels />
     </div>
   );
 }

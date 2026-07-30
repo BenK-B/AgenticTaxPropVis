@@ -1,4 +1,4 @@
-import type { BehaviorWeights, EngineState, MetricsSnapshot, Policy } from '@/types';
+import type { Agent, BehaviorWeights, EngineState, MetricsSnapshot, Policy } from '@/types';
 import type { RNG } from './random';
 import { gaussian } from './random';
 import { ARCHETYPE_CONFIGS } from './archetypes';
@@ -17,10 +17,13 @@ import {
 } from './logMessages';
 import {
   BEHAVIOR_LOG_LENGTH,
+  EQUITY_FUND_LIQUIDATION_INTERVAL_TICKS,
+  FLASH_COLOR_AI_SHIELD,
   FLASH_COLOR_CRITICAL,
-  FLASH_COLOR_GOOD,
+  FLASH_COLOR_FLIGHT,
   FLASH_COLOR_NEUTRAL,
-  FLASH_GREEN_MS,
+  FLASH_COLOR_WARNING,
+  FLASH_EVENT_MS,
   FLASH_NEUTRAL_MS,
   FLASH_RED_MS,
   FLIGHT_TICKS,
@@ -63,7 +66,15 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
   let taxRevenueEvaded = 0;
   let taxRevenueAvoided = 0;
   let aiTaxRevenueCollected = 0;
+  // Captured equity accrues into the public fund rather than being recognized as revenue the
+  // month it's taken (see the equity-fund liquidation block below), so it's tracked separately
+  // from aiTaxRevenueCollected until the fund actually sells a slice of it.
+  let equityCapturedThisTick = 0;
+  let tokensConsumed = 0;
+  let kwhConsumed = 0;
   const evadedTaxThisTick = new Map<string, number>();
+  // Income per active agent this tick, kept for the UBI taper ranking after the pot is known.
+  const activeIncomeRecords: { agent: Agent; monthlyIncome: number; taxPaid: number }[] = [];
 
   for (let i = 0; i < sortedByWealth.length; i++) {
     const agent = sortedByWealth[i];
@@ -102,6 +113,7 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     if (evadedThisTick > 0) evadedTaxThisTick.set(agent.id, evadedThisTick);
 
     let aiTaxOwed = 0;
+    let equityCapturedOwed = 0;
     let aiTaxAvoided = 0;
     let combinedAiRate = 0;
     if (agent.archetype === 'Business_Owner') {
@@ -109,31 +121,45 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
       aiTaxOwed = result.owed;
       aiTaxAvoided = result.shieldedOwed;
       combinedAiRate = result.combinedRate;
+      tokensConsumed += result.tokensUsed;
+      kwhConsumed += result.kwhUsed;
     } else if (agent.archetype === 'HNW_Investor') {
       const result = calculateEquityCaptureTax(capitalReturn, agent.aiExposure, agent.aiShieldFraction, policy.aiTaxMechanisms);
-      aiTaxOwed = result.owed;
+      equityCapturedOwed = result.owed;
       aiTaxAvoided = result.shieldedOwed;
       combinedAiRate = result.combinedRate;
     }
 
-    const taxPaid = incomeTaxPaid + capGainsTaxPaid + aiTaxOwed;
-    taxRevenueCollected += taxPaid;
+    // Captured equity still leaves the investor's wealth this tick (the stake is transferred
+    // out of their portfolio), even though it isn't recognized as revenue/AI-tax-collected until
+    // the fund liquidates it — see the equity-fund block after this loop.
+    const taxPaid = incomeTaxPaid + capGainsTaxPaid + aiTaxOwed + equityCapturedOwed;
+    taxRevenueCollected += incomeTaxPaid + capGainsTaxPaid + aiTaxOwed;
     taxRevenueEvaded += evadedThisTick;
     taxRevenueAvoided += aiTaxAvoided;
     aiTaxRevenueCollected += aiTaxOwed;
+    equityCapturedThisTick += equityCapturedOwed;
 
-    // 4. Behavioral decisions.
+    // 4. Behavioral decisions. Flashes here are reserved for genuinely rare, notable
+    // state changes (not routine per-tick activity) — colored to match BehaviorLogFeed's
+    // kind coloring, so the canvas and the Inspector's log agree on what each color means.
     if (decideEvasion(agent, marginalRate, policy, weights, rng)) {
       pushRingBuffer(agent.behaviorLog, evasionLog(nextTickNumber, agent.evasionFraction, marginalRate), BEHAVIOR_LOG_LENGTH);
+      agent.flashUntil = nowMs + FLASH_EVENT_MS;
+      agent.flashColor = FLASH_COLOR_WARNING;
     }
     if ((agent.archetype === 'Business_Owner' || agent.archetype === 'HNW_Investor') && combinedAiRate > 0) {
       if (decideAiShield(agent, combinedAiRate, weights, rng)) {
         pushRingBuffer(agent.behaviorLog, aiShieldLog(nextTickNumber, combinedAiRate, agent.aiShieldFraction), BEHAVIOR_LOG_LENGTH);
+        agent.flashUntil = nowMs + FLASH_EVENT_MS;
+        agent.flashColor = FLASH_COLOR_AI_SHIELD;
       }
     }
     if (config.flightEligible) {
       if (decideCapitalFlight(agent, marginalRate, policy, weights, rng)) {
         pushRingBuffer(agent.behaviorLog, flightLog(nextTickNumber, marginalRate, policy.capitalGainsRate), BEHAVIOR_LOG_LENGTH);
+        agent.flashUntil = nowMs + FLASH_EVENT_MS;
+        agent.flashColor = FLASH_COLOR_FLIGHT;
       } else if (agent.flightProgress > 0 && agent.flightProgress < 1) {
         agent.flightProgress = Math.min(1, agent.flightProgress + 1 / FLIGHT_TICKS);
         if (agent.flightProgress >= 1) agent.isActiveInEconomy = false;
@@ -143,15 +169,57 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     // 6. Target position update (actual interpolation happens every render frame, not here).
     computeTargetPosition(agent, wealthPercentile);
 
-    // 8-9. UBI + wealth settle (floored at 0).
-    agent.wealth = Math.max(0, agent.wealth + monthlyIncome + capitalReturn - taxPaid + policy.ubiPayout);
+    // 9. Wealth settle from ordinary income/tax (floored at 0). UBI, if any, is applied in a
+    // second pass below once the AI-tax pot and each active agent's income rank are known;
+    // the history snapshot is pushed there too, once each agent's final wealth for the tick
+    // (including UBI) is known.
+    agent.wealth = Math.max(0, agent.wealth + monthlyIncome + capitalReturn - taxPaid);
+    activeIncomeRecords.push({ agent, monthlyIncome, taxPaid });
+  }
 
-    // 7. History push (ring buffer, max 12).
-    pushRingBuffer(agent.history, { tick: nextTickNumber, income: monthlyIncome, taxPaid, wealth: agent.wealth }, HISTORY_LENGTH);
+  // 7b. Equity fund: captured equity accrues as a public stake (see above) rather than being
+  // spendable immediately. Once a year (every 12 ticks) the fund sells off a configured slice
+  // of its accumulated holdings; only that liquidated cash reaches the AI-tax revenue pot (and
+  // therefore UBI) — modeling a sovereign-wealth-fund-style dividend rather than an instant tax.
+  state.equityFundBalance += equityCapturedThisTick;
+  let equityFundLiquidated = 0;
+  if (nextTickNumber % EQUITY_FUND_LIQUIDATION_INTERVAL_TICKS === 0 && state.equityFundBalance > 0) {
+    equityFundLiquidated = state.equityFundBalance * policy.aiTaxMechanisms.equityCapture.annualLiquidationPct;
+    state.equityFundBalance -= equityFundLiquidated;
+    taxRevenueCollected += equityFundLiquidated;
+    aiTaxRevenueCollected += equityFundLiquidated;
+  }
 
-    // Green flash: this agent transacted (earned income, paid tax) this tick.
-    agent.flashUntil = nowMs + FLASH_GREEN_MS;
-    agent.flashColor = FLASH_COLOR_GOOD;
+  // 8. UBI: redistributes exactly the AI/automation tax pot collected this tick (not general
+  // revenue) across active agents. taperStrength reweights who gets how much without changing
+  // the total — 0 is a flat equal split, 1 gives the lowest earners ~2x the flat share and the
+  // highest earners ~0.
+  let ubiPaidOut = 0;
+  if (policy.ubi.enabled && aiTaxRevenueCollected > 0 && activeIncomeRecords.length > 0) {
+    activeIncomeRecords.sort((a, b) => a.monthlyIncome - b.monthlyIncome);
+    const recordCount = activeIncomeRecords.length;
+    const weights = activeIncomeRecords.map((_, i) => {
+      const incomePercentile = recordCount > 1 ? i / (recordCount - 1) : 0.5;
+      return Math.max(0, 1 + policy.ubi.taperStrength * (1 - 2 * incomePercentile));
+    });
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight > 0) {
+      for (let i = 0; i < activeIncomeRecords.length; i++) {
+        const share = (weights[i] / totalWeight) * aiTaxRevenueCollected;
+        activeIncomeRecords[i].agent.wealth += share;
+        ubiPaidOut += share;
+      }
+    }
+  }
+
+  // 7. History push (ring buffer, max 12) — after UBI, so it reflects each agent's true
+  // final wealth for the tick.
+  for (const record of activeIncomeRecords) {
+    pushRingBuffer(
+      record.agent.history,
+      { tick: nextTickNumber, income: record.monthlyIncome, taxPaid: record.taxPaid, wealth: record.agent.wealth },
+      HISTORY_LENGTH,
+    );
   }
 
   // 5. Audit & enforcement, once per tick over the whole active population.
@@ -189,6 +257,11 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     aiTaxRevenueCollected,
     gini,
     capitalFlightRate,
+    ubiPaidOut,
+    equityFundBalance: state.equityFundBalance,
+    equityFundLiquidated,
+    tokensConsumed,
+    kwhConsumed,
     activeAgentCount,
     totalWealth,
   };

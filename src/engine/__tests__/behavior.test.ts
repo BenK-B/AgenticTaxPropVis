@@ -128,7 +128,7 @@ describe('decideCapitalFlight', () => {
     capitalGainsRate: 0.2,
     aiTaxMechanisms: {
       ...DEFAULT_POLICY.aiTaxMechanisms,
-      equityCapture: { enabled: true, rate: 0.3 },
+      equityCapture: { enabled: true, rate: 0.3, annualLiquidationPct: 0.08 },
     },
   };
 

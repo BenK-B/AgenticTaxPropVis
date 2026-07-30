@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type {
   Agent,
-  AiTaxMechanism,
   AiTaxMechanisms,
   Archetype,
   BehaviorWeights,
@@ -9,6 +8,7 @@ import type {
   Policy,
   SimDate,
   SpeedMultiplier,
+  UbiPolicy,
 } from '@/types';
 import {
   DEFAULT_ARCHETYPE_RATIOS,
@@ -31,8 +31,9 @@ interface SimStore {
   metricsHistory: MetricsSnapshot[];
   agentCountConfig: number;
 
-  setPolicy: (partial: Partial<Omit<Policy, 'aiTaxMechanisms'>>) => void;
-  setAiTaxMechanism: (key: keyof AiTaxMechanisms, partial: Partial<AiTaxMechanism>) => void;
+  setPolicy: (partial: Partial<Omit<Policy, 'aiTaxMechanisms' | 'ubi'>>) => void;
+  setAiTaxMechanism: <K extends keyof AiTaxMechanisms>(key: K, partial: Partial<AiTaxMechanisms[K]>) => void;
+  setUbi: (partial: Partial<UbiPolicy>) => void;
   setArchetypeRatio: (archetype: Archetype, value: number) => void;
   setBehaviorWeight: (key: keyof BehaviorWeights, value: number) => void;
   setAgentCount: (count: number) => void;
@@ -76,6 +77,13 @@ export const useSimStore = create<SimStore>((set, get) => ({
         [key]: { ...policy.aiTaxMechanisms[key], ...partial },
       },
     };
+    engineRunner.setPolicy(next);
+    set({ policy: next });
+  },
+
+  setUbi: (partial) => {
+    const policy = get().policy;
+    const next: Policy = { ...policy, ubi: { ...policy.ubi, ...partial } };
     engineRunner.setPolicy(next);
     set({ policy: next });
   },

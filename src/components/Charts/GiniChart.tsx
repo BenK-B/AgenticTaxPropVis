@@ -10,7 +10,7 @@ export function GiniChart() {
   const data = metricsHistory.map((m) => ({ tick: m.tick, Gini: m.gini }));
 
   return (
-    <ChartCard title="Gini coefficient">
+    <ChartCard title="Gini coefficient" subtitle="Falling = UBI/tax redistribution outpacing wealth concentration">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--gridline)" vertical={false} />

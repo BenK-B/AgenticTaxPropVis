@@ -52,6 +52,11 @@ function zeroMetrics(state: EngineState): MetricsSnapshot {
     aiTaxRevenueCollected: 0,
     gini: 0,
     capitalFlightRate: 0,
+    ubiPaidOut: 0,
+    equityFundBalance: state.equityFundBalance,
+    equityFundLiquidated: 0,
+    tokensConsumed: 0,
+    kwhConsumed: 0,
     activeAgentCount: state.agents.length,
     totalWealth: state.agents.reduce((sum, agent) => sum + agent.wealth, 0),
   };
@@ -86,6 +91,7 @@ class EngineRunner {
       tick: 0,
       simDate: { year: 1, month: 1 },
       agents: seedAgents(this.agentCount, this.archetypeRatios, this.rng),
+      equityFundBalance: 0,
     };
   }
 
@@ -150,6 +156,7 @@ class EngineRunner {
       tick: 0,
       simDate: { year: 1, month: 1 },
       agents: seedAgents(this.agentCount, this.archetypeRatios, this.rng),
+      equityFundBalance: 0,
     };
     this.callbacks?.onTicks([zeroMetrics(this.engineState)]);
     this.emitSelectedAgentIfNeeded();
