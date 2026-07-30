@@ -173,7 +173,15 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     // second pass below once the AI-tax pot and each active agent's income rank are known;
     // the history snapshot is pushed there too, once each agent's final wealth for the tick
     // (including UBI) is known.
-    agent.wealth = Math.max(0, agent.wealth + monthlyIncome + capitalReturn - taxPaid);
+    //
+    // Only `savingsRate` of net ordinary income becomes net worth — the rest is cost of living
+    // and simply leaves the model. Without this, 100% of after-tax income would compound into
+    // wealth every month, which pushed low-wealth agents across any poverty-line threshold in a
+    // tick or two regardless of policy. Capital gains (net of their own tax/equity-capture) are
+    // investment growth, not consumable income, so they still accrue in full.
+    const netOrdinaryIncome = monthlyIncome - incomeTaxPaid - aiTaxOwed;
+    const netCapitalIncome = capitalReturn - capGainsTaxPaid - equityCapturedOwed;
+    agent.wealth = Math.max(0, agent.wealth + netOrdinaryIncome * config.savingsRate + netCapitalIncome);
     activeIncomeRecords.push({ agent, monthlyIncome, taxPaid });
   }
 

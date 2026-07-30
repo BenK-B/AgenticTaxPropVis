@@ -7,6 +7,14 @@ export interface ArchetypeConfig {
   incomeLogNormal: { mu: number; sigma: number };
   /** wealth = income * uniform(range) * noise */
   wealthMultiplierRange: [number, number];
+  /**
+   * Fraction of after-tax ordinary income (wages/business profit, not capital gains) that
+   * accrues to net worth each month — the rest is consumed as cost of living and simply leaves
+   * the model. Without this, 100% of net income would compound into wealth every tick, which
+   * makes low-wealth agents cross any poverty-line threshold almost immediately regardless of
+   * tax policy. Capital gains (HNW_Investor) aren't subject to this — they accrue in full.
+   */
+  savingsRate: number;
   riskToleranceRange: [number, number];
   taxSensitivityRange: [number, number];
   /** Fraction of revenue/gains tied to AI or automation, drawn uniform(range). */

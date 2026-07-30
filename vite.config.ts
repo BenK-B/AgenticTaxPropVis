@@ -4,7 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/AgenticTaxPropVis/' : '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -14,4 +15,4 @@ export default defineConfig({
   test: {
     environment: 'node',
   },
-})
+}))
