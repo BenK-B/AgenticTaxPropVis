@@ -2,6 +2,8 @@
 
 A vibe-coded agentic AI tax visualization. None of the values are checked or certified by any real sources. 
 
+To try out the model go to this link: https://benk-b.github.io/AgenticTaxPropVis/
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
