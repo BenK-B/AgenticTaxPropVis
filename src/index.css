@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+
+  --surface-0: #f5f6f9;
+  --surface-1: #ffffff;
+  --surface-2: #edeff4;
+  --text-primary: #0f1115;
+  --text-secondary: #4b5163;
+  --text-muted: #8a90a3;
+  --border: rgba(15, 17, 21, 0.1);
+  --gridline: #e3e5ec;
+  --baseline: #c7cad6;
+
+  /* Categorical order validated with scripts/validate_palette.js from the dataviz skill
+     (light, surface #ffffff): all checks pass except a WARN on hnw<->business CVD
+     separation (7.3, within the 6-8 floor band) — acceptable because identity is never
+     color-alone here (archetype labels + fixed canvas clustering by archetype). */
+  --archetype-w2: #1d4ed8;
+  --archetype-freelancer: #a855f7;
+  --archetype-business: #16a34a;
+  --archetype-hnw: #b45309;
+
+  /* Deliberately distinct hues from the archetype palette above, so chart series never
+     read as archetype-coded. Validated as a 3-slot categorical set (collected/evaded/avoided). */
+  --series-collected: #0d9488;
+  --series-evaded: #dc2626;
+  --series-avoided: #7c3aed;
+  --series-gini: #0891b2;
+  --series-flight: #ea580c;
+
+  --status-good: #16a34a;
+  --status-warning: #d97706;
+  --status-critical: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --surface-0: #0a0c11;
+    --surface-1: #12151c;
+    --surface-2: #1b1f2a;
+    --text-primary: #f3f4f7;
+    --text-secondary: #a8adbd;
+    --text-muted: #6b7186;
+    --border: rgba(255, 255, 255, 0.09);
+    --gridline: #232732;
+    --baseline: #383e4d;
+
+    /* Validated with scripts/validate_palette.js (dark, surface #12151c): all checks pass
+       except the same hnw<->business WARN as light mode (6.2, within the floor band). */
+    --archetype-w2: #5b8ef4;
+    --archetype-freelancer: #c026d3;
+    --archetype-business: #16a34a;
+    --archetype-hnw: #d97706;
+
+    --series-collected: #0d9488;
+    --series-evaded: #ef4444;
+    --series-avoided: #8b5cf6;
+    --series-gini: #22d3ee;
+    --series-flight: #fb923c;
+
+    --status-good: #4ade80;
+    --status-warning: #fbbf24;
+    --status-critical: #f87171;
+  }
+}
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-gridline: var(--gridline);
+  --color-baseline: var(--baseline);
+
+  --color-archetype-w2: var(--archetype-w2);
+  --color-archetype-freelancer: var(--archetype-freelancer);
+  --color-archetype-business: var(--archetype-business);
+  --color-archetype-hnw: var(--archetype-hnw);
+
+  --color-series-collected: var(--series-collected);
+  --color-series-evaded: var(--series-evaded);
+  --color-series-avoided: var(--series-avoided);
+  --color-series-gini: var(--series-gini);
+  --color-series-flight: var(--series-flight);
+
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-surface-0);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-baseline);
+  border-radius: 999px;
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-1 border border-border rounded-xl p-4;
+  }
+
+  .field-row {
+    @apply grid items-center gap-2 py-1.5 text-sm;
+    grid-template-columns: 92px minmax(0, 1fr) 68px;
+  }
+
+  .field-row-label {
+    @apply text-text-secondary text-xs truncate;
+  }
+
+  .field-row-unit {
+    @apply text-text-muted text-[11px] text-right tabular-nums truncate;
+  }
+
+  input[type="range"] {
+    @apply h-1.5 rounded-full bg-surface-2 appearance-none cursor-pointer w-full min-w-0;
+  }
+
+  input[type="number"] {
+    @apply bg-surface-2 border border-border rounded-md px-1.5 py-1 text-xs text-text-primary w-full;
+  }
+
+  .stat-tile {
+    @apply bg-surface-1 border border-border rounded-xl flex flex-col gap-1 p-3;
+  }
+
+  .preset-pill {
+    @apply px-3 py-1 rounded-full text-xs border border-border bg-surface-2 text-text-secondary hover:text-text-primary hover:border-baseline transition-colors cursor-pointer;
+  }
+
+  .drawer-overlay {
+    @apply fixed inset-0 bg-black/40 z-40;
+  }
+
+  .drawer-panel {
+    @apply fixed top-0 right-0 h-full w-[400px] max-w-full bg-surface-1 border-l border-border z-50 overflow-y-auto shadow-2xl;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold uppercase tracking-wide text-text-muted;
+  }
+}
