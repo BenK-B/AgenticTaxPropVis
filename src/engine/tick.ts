@@ -1,6 +1,7 @@
 import type { Agent, BehaviorWeights, EngineState, MetricsSnapshot, Policy } from '@/types';
 import type { RNG } from './random';
 import { gaussian, uniform } from './random';
+import { clamp } from './mathUtils';
 import { ARCHETYPE_CONFIGS } from './archetypes';
 import { calculateBracketTax, calculateBusinessAiTax, calculateEquityCaptureTax, marginalRateFor } from './tax';
 import { decideAiShield, decideCapitalFlight, decideEvasion, writeOffFactorFor } from './behavior';
@@ -33,6 +34,9 @@ import {
   FLASH_RED_MS,
   FLIGHT_TICKS,
   HISTORY_LENGTH,
+  POVERTY_LINE_ANNUAL,
+  POVERTY_SAVINGS_FLOOR,
+  POVERTY_SAVINGS_RAMP_MULTIPLE,
 } from './constants';
 
 function pushRingBuffer<T>(arr: T[], item: T, max: number): void {
@@ -224,9 +228,18 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     // wealth every month, which pushed low-wealth agents across any poverty-line threshold in a
     // tick or two regardless of policy. Capital gains (net of their own tax/equity-capture) are
     // investment growth, not consumable income, so they still accrue in full.
+    //
+    // Near/below the poverty line, real income mostly goes to fixed necessities rather than a
+    // constant proportion, so the archetype's flat savingsRate is further scaled down toward
+    // POVERTY_SAVINGS_FLOOR as net worth approaches $0 — otherwise a below-poverty agent with an
+    // otherwise-normal income saves at the same rate as everyone else in their archetype and
+    // ratchets across the line in a year or two regardless of how poor they started.
+    const savingsRampWealth = POVERTY_LINE_ANNUAL * POVERTY_SAVINGS_RAMP_MULTIPLE;
+    const savingsRampFactor = clamp(agent.wealth / savingsRampWealth, POVERTY_SAVINGS_FLOOR, 1);
+    const effectiveSavingsRate = config.savingsRate * savingsRampFactor;
     const netOrdinaryIncome = monthlyIncome - incomeTaxPaid - aiTaxOwed;
     const netCapitalIncome = capitalReturn - capGainsTaxPaid - equityCapturedOwed;
-    agent.wealth = Math.max(0, agent.wealth + netOrdinaryIncome * config.savingsRate + netCapitalIncome + wealthShockAmount);
+    agent.wealth = Math.max(0, agent.wealth + netOrdinaryIncome * effectiveSavingsRate + netCapitalIncome + wealthShockAmount);
     activeIncomeRecords.push({ agent, monthlyIncome, taxPaid });
   }
 
