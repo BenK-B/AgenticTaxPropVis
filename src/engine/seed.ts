@@ -20,6 +20,7 @@ export function seedAgents(count: number, archetypeRatios: Record<Archetype, num
     const riskTolerance = uniform(rng, config.riskToleranceRange[0], config.riskToleranceRange[1]);
     const taxSensitivity = uniform(rng, config.taxSensitivityRange[0], config.taxSensitivityRange[1]);
     const aiExposure = uniform(rng, config.aiExposureRange[0], config.aiExposureRange[1]);
+    const costOfLivingAnnual = uniform(rng, config.costOfLivingAnnualRange[0], config.costOfLivingAnnualRange[1]);
     const startPosition = { x: rng(), y: rng() };
 
     agents.push({
@@ -35,6 +36,7 @@ export function seedAgents(count: number, archetypeRatios: Record<Archetype, num
       flightProgress: 0,
       auditCooldownUntil: 0,
       aiExposure,
+      costOfLivingAnnual,
       aiShieldFraction: 0,
       incomeShockMultiplier: 1,
       incomeShockMonthsRemaining: 0,

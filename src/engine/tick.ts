@@ -1,13 +1,12 @@
 import type { Agent, BehaviorWeights, EngineState, MetricsSnapshot, Policy } from '@/types';
 import type { RNG } from './random';
 import { gaussian, uniform } from './random';
-import { clamp } from './mathUtils';
 import { ARCHETYPE_CONFIGS } from './archetypes';
 import { calculateBracketTax, calculateBusinessAiTax, calculateEquityCaptureTax, marginalRateFor } from './tax';
 import { decideAiShield, decideCapitalFlight, decideEvasion, writeOffFactorFor } from './behavior';
 import { runAudits } from './audit';
 import { computeTargetPosition } from './position';
-import { computeCapitalFlightRate, computeGini, povertyLineAtTick } from './metrics';
+import { computeCapitalFlightRate, computeGini, inflationFactorAtTick } from './metrics';
 import {
   aiShieldLog,
   auditCaughtLog,
@@ -34,9 +33,13 @@ import {
   FLASH_RED_MS,
   FLIGHT_TICKS,
   HISTORY_LENGTH,
-  POVERTY_SAVINGS_FLOOR,
-  POVERTY_SAVINGS_RAMP_MULTIPLE,
+  POVERTY_LINE_GROWTH_RATE_ANNUAL,
 } from './constants';
+
+/** Mean monthly wage growth pegged to the same rate the poverty line/cost-of-living inflate at,
+ * so nominal wages track nominal prices on average — real per-tick noise (gaussian stdev 0.01)
+ * is layered on top of this drift, not instead of it. */
+const MONTHLY_WAGE_DRIFT = (1 + POVERTY_LINE_GROWTH_RATE_ANNUAL) ** (1 / 12) - 1;
 
 function pushRingBuffer<T>(arr: T[], item: T, max: number): void {
   arr.push(item);
@@ -130,8 +133,16 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
       agent.flashColor = FLASH_COLOR_GOOD;
     }
 
+    // Cost of living: re-rolled once per sim-year (not every tick) so a given year's cost is a
+    // single random draw — a genuinely expensive or cheap year — rather than smoothing to the
+    // archetype's average, then amortized evenly across that year's 12 ticks.
+    if (nextTickNumber % 12 === 1) {
+      const base = uniform(rng, config.costOfLivingAnnualRange[0], config.costOfLivingAnnualRange[1]);
+      agent.costOfLivingAnnual = base * inflationFactorAtTick(nextTickNumber);
+    }
+
     // 1. Income generation.
-    const growthFactor = 1 + gaussian(rng, 0, 0.01);
+    const growthFactor = 1 + MONTHLY_WAGE_DRIFT + gaussian(rng, 0, 0.01);
     const monthlyIncome = (agent.income / 12) * growthFactor * agent.incomeShockMultiplier;
     agent.income *= growthFactor;
 
@@ -217,28 +228,23 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     // 6. Target position update (actual interpolation happens every render frame, not here).
     computeTargetPosition(agent, wealthPercentile);
 
-    // 9. Wealth settle from ordinary income/tax (floored at 0). UBI, if any, is applied in a
-    // second pass below once the AI-tax pot and each active agent's income rank are known;
-    // the history snapshot is pushed there too, once each agent's final wealth for the tick
-    // (including UBI) is known.
+    // 9. Wealth settle from ordinary income/tax/cost-of-living (floored at 0). UBI, if any, is
+    // applied in a second pass below once the AI-tax pot and each active agent's income rank are
+    // known; the history snapshot is pushed there too, once each agent's final wealth for the
+    // tick (including UBI) is known.
     //
-    // Only `savingsRate` of net ordinary income becomes net worth — the rest is cost of living
-    // and simply leaves the model. Without this, 100% of after-tax income would compound into
-    // wealth every month, which pushed low-wealth agents across any poverty-line threshold in a
-    // tick or two regardless of policy. Capital gains (net of their own tax/equity-capture) are
-    // investment growth, not consumable income, so they still accrue in full.
-    //
-    // Near/below the poverty line, real income mostly goes to fixed necessities rather than a
-    // constant proportion, so the archetype's flat savingsRate is further scaled down toward
-    // POVERTY_SAVINGS_FLOOR as net worth approaches $0 — otherwise a below-poverty agent with an
-    // otherwise-normal income saves at the same rate as everyone else in their archetype and
-    // ratchets across the line in a year or two regardless of how poor they started.
-    const savingsRampWealth = povertyLineAtTick(nextTickNumber) * POVERTY_SAVINGS_RAMP_MULTIPLE;
-    const savingsRampFactor = clamp(agent.wealth / savingsRampWealth, POVERTY_SAVINGS_FLOOR, 1);
-    const effectiveSavingsRate = config.savingsRate * savingsRampFactor;
+    // Take-home pay must first cover cost of living (see the annual re-roll above) — a real,
+    // must-pay expense independent of income level or source. Only `savingsRate` of whatever's
+    // left over after that accrues to net worth (the rest is further discretionary spending). If
+    // cost of living exceeds take-home pay, the full shortfall comes straight out of wealth — you
+    // can't scale down your rent by a "savings rate" when you're underwater. Capital gains (net of
+    // their own tax/equity-capture) are investment growth, not consumable income, so they still
+    // accrue in full regardless of whether ordinary income covers living costs.
     const netOrdinaryIncome = monthlyIncome - incomeTaxPaid - aiTaxOwed;
+    const disposableIncome = netOrdinaryIncome - agent.costOfLivingAnnual / 12;
+    const netWealthFromIncome = disposableIncome >= 0 ? disposableIncome * config.savingsRate : disposableIncome;
     const netCapitalIncome = capitalReturn - capGainsTaxPaid - equityCapturedOwed;
-    agent.wealth = Math.max(0, agent.wealth + netOrdinaryIncome * effectiveSavingsRate + netCapitalIncome + wealthShockAmount);
+    agent.wealth = Math.max(0, agent.wealth + netWealthFromIncome + netCapitalIncome + wealthShockAmount);
     activeIncomeRecords.push({ agent, monthlyIncome, taxPaid });
   }
 

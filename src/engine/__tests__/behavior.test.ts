@@ -26,6 +26,7 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     flightProgress: 0,
     auditCooldownUntil: 0,
     aiExposure: 0.3,
+    costOfLivingAnnual: 30000,
     aiShieldFraction: 0,
     incomeShockMultiplier: 1,
     incomeShockMonthsRemaining: 0,

@@ -44,18 +44,6 @@ export const POVERTY_LINE_ANNUAL = 15000;
 export const POVERTY_LINE_GROWTH_RATE_ANNUAL = 0.025;
 
 /**
- * Real near-poverty income mostly goes to fixed necessities rather than a constant proportion,
- * so agents near/below the poverty line effectively bank very little of their net income —
- * unlike the flat per-archetype savingsRate, which would otherwise let a below-poverty agent
- * with an otherwise-normal income save at the same rate as everyone else in their archetype and
- * ratchet across the line in a year or two regardless of how poor they started. Effective
- * savings rate ramps linearly from POVERTY_SAVINGS_FLOOR (at $0 net worth) up to the archetype's
- * full savingsRate once wealth reaches POVERTY_SAVINGS_RAMP_MULTIPLE x the poverty line.
- */
-export const POVERTY_SAVINGS_FLOOR = 0.15;
-export const POVERTY_SAVINGS_RAMP_MULTIPLE = 2;
-
-/**
  * Semantic flash-color keys (not real CSS colors) — the engine has no UI dependency, so it
  * only labels *why* an agent is flashing. The renderer maps these to actual theme colors.
  * Reserved for genuinely rare, notable per-agent events (audits, behavioral state changes) —

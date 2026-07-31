@@ -36,13 +36,24 @@ export interface ArchetypeConfig {
   /** wealth = income * uniform(range) * noise */
   wealthMultiplierRange: [number, number];
   /**
-   * Fraction of after-tax ordinary income (wages/business profit, not capital gains) that
-   * accrues to net worth each month — the rest is consumed as cost of living and simply leaves
-   * the model. Without this, 100% of net income would compound into wealth every tick, which
-   * makes low-wealth agents cross any poverty-line threshold almost immediately regardless of
-   * tax policy. Capital gains (HNW_Investor) aren't subject to this — they accrue in full.
+   * Fraction of after-tax ordinary income left over *after* cost-of-living (see
+   * costOfLivingAnnualRange below) that accrues to net worth each month — the rest is further
+   * discretionary/lifestyle spending and simply leaves the model. Without this, 100% of leftover
+   * income would compound into wealth every tick. Capital gains (HNW_Investor) aren't subject to
+   * this — they accrue in full. If cost-of-living exceeds take-home pay in a given month, the
+   * full shortfall (not scaled by savingsRate) comes straight out of wealth — you can't choose
+   * not to pay rent.
    */
   savingsRate: number;
+  /**
+   * Annual cost-of-living (rent, food, insurance, and other must-pay expenses), drawn uniformly
+   * from this range and re-rolled once per sim-year per agent, then amortized monthly. Weighted
+   * by archetype/job type — a Business_Owner or HNW_Investor's lifestyle burn is heavier than a
+   * W2 worker's. Deducted from wealth every tick regardless of income source, so a low earner
+   * (or a wealthy agent having a rare bad income year) can see net worth stagnate or fall, not
+   * just grow more slowly.
+   */
+  costOfLivingAnnualRange: [number, number];
   riskToleranceRange: [number, number];
   taxSensitivityRange: [number, number];
   /** Fraction of revenue/gains tied to AI or automation, drawn uniform(range). */

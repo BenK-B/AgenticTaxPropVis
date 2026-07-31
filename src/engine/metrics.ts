@@ -1,11 +1,20 @@
 import type { Agent } from '@/types';
 import { POVERTY_LINE_ANNUAL, POVERTY_LINE_GROWTH_RATE_ANNUAL } from './constants';
 
-/** Poverty line, compounded smoothly from POVERTY_LINE_ANNUAL at POVERTY_LINE_GROWTH_RATE_ANNUAL
- * per (12-tick) sim year — 1 tick = 1 sim month, so growth is applied per-tick as the 12th root
- * of the annual rate to avoid a once-a-year discontinuity in who counts as below the line. */
+/** Cumulative inflation multiplier since tick 0, compounded smoothly at
+ * POVERTY_LINE_GROWTH_RATE_ANNUAL per (12-tick) sim year — 1 tick = 1 sim month, so growth is
+ * applied as the 12th root of the annual rate to avoid a once-a-year discontinuity. Wages and
+ * cost-of-living are pegged to the same rate as the poverty line itself (see tick.ts) so nominal
+ * poverty doesn't structurally drift just because prices/wages/the line are all rising in lockstep
+ * — only real behavioral dynamics (shocks, savings, cost-of-living variance) move the poverty
+ * rate from here. */
+export function inflationFactorAtTick(tick: number): number {
+  return (1 + POVERTY_LINE_GROWTH_RATE_ANNUAL) ** (tick / 12);
+}
+
+/** Poverty line in that tick's nominal dollars. */
 export function povertyLineAtTick(tick: number): number {
-  return POVERTY_LINE_ANNUAL * (1 + POVERTY_LINE_GROWTH_RATE_ANNUAL) ** (tick / 12);
+  return POVERTY_LINE_ANNUAL * inflationFactorAtTick(tick);
 }
 
 /** Standard Gini coefficient over all agents' wealth (active + fled — still real wealth). */

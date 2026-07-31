@@ -43,6 +43,8 @@ export interface Agent {
   auditCooldownUntil: number;
   aiExposure: number;
   aiShieldFraction: number;
+  /** Current annual cost-of-living, re-rolled once per sim-year within the archetype's range. */
+  costOfLivingAnnual: number;
   /** 1 = normal; temporarily <1 during a job loss/slump or >1 during a bonus/boom. */
   incomeShockMultiplier: number;
   /** Months left before incomeShockMultiplier reverts to 1. */
