@@ -7,7 +7,7 @@ import { calculateBracketTax, calculateBusinessAiTax, calculateEquityCaptureTax,
 import { decideAiShield, decideCapitalFlight, decideEvasion, writeOffFactorFor } from './behavior';
 import { runAudits } from './audit';
 import { computeTargetPosition } from './position';
-import { computeCapitalFlightRate, computeGini } from './metrics';
+import { computeCapitalFlightRate, computeGini, povertyLineAtTick } from './metrics';
 import {
   aiShieldLog,
   auditCaughtLog,
@@ -34,7 +34,6 @@ import {
   FLASH_RED_MS,
   FLIGHT_TICKS,
   HISTORY_LENGTH,
-  POVERTY_LINE_ANNUAL,
   POVERTY_SAVINGS_FLOOR,
   POVERTY_SAVINGS_RAMP_MULTIPLE,
 } from './constants';
@@ -234,7 +233,7 @@ export function tick(state: EngineState, policy: Policy, weights: BehaviorWeight
     // POVERTY_SAVINGS_FLOOR as net worth approaches $0 — otherwise a below-poverty agent with an
     // otherwise-normal income saves at the same rate as everyone else in their archetype and
     // ratchets across the line in a year or two regardless of how poor they started.
-    const savingsRampWealth = POVERTY_LINE_ANNUAL * POVERTY_SAVINGS_RAMP_MULTIPLE;
+    const savingsRampWealth = povertyLineAtTick(nextTickNumber) * POVERTY_SAVINGS_RAMP_MULTIPLE;
     const savingsRampFactor = clamp(agent.wealth / savingsRampWealth, POVERTY_SAVINGS_FLOOR, 1);
     const effectiveSavingsRate = config.savingsRate * savingsRampFactor;
     const netOrdinaryIncome = monthlyIncome - incomeTaxPaid - aiTaxOwed;

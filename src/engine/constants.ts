@@ -39,6 +39,10 @@ export const ENERGY_UNITS_PER_DOLLAR_AI_REVENUE = 0.3; // kWh consumed per $1 of
  * used as a wealth/net-worth reference line on the canvas — not a precise legal figure. */
 export const POVERTY_LINE_ANNUAL = 15000;
 
+/** Poverty line drifts upward over time (cost-of-living/wage growth), compounding smoothly
+ * tick-by-tick rather than jumping once a year — see `povertyLineAtTick` in metrics.ts. */
+export const POVERTY_LINE_GROWTH_RATE_ANNUAL = 0.025;
+
 /**
  * Real near-poverty income mostly goes to fixed necessities rather than a constant proportion,
  * so agents near/below the poverty line effectively bank very little of their net income —

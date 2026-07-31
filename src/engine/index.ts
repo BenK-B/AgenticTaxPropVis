@@ -15,7 +15,7 @@ export { decideEvasion, decideAiShield, decideCapitalFlight, writeOffFactorFor }
 export { runAudits } from './audit';
 export type { AuditOutcome } from './audit';
 export { computeTargetPosition, updatePositionForFrame } from './position';
-export { computeGini, computeCapitalFlightRate } from './metrics';
+export { computeGini, computeCapitalFlightRate, povertyLineAtTick } from './metrics';
 export { seedAgents } from './seed';
 export { tick } from './tick';
 export type { TickResult } from './tick';

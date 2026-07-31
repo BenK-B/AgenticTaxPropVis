@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { engineRunner } from '@/state/engineBridge';
 import { wealthPercentileToY } from '@/engine/position';
-import { POVERTY_LINE_ANNUAL } from '@/engine/constants';
+import { povertyLineAtTick } from '@/engine/metrics';
 import { formatCompactUSD } from '@/utils/format';
 
 const AXIS_PERCENTILES = [0.9, 0.5, 0.1];
@@ -10,9 +10,10 @@ const POLL_MS = 1000;
 interface ScaleState {
   axisTicks: { percentile: number; wealth: number }[];
   povertyPercentile: number | null;
+  povertyLine: number;
 }
 
-const EMPTY_SCALE: ScaleState = { axisTicks: [], povertyPercentile: null };
+const EMPTY_SCALE: ScaleState = { axisTicks: [], povertyPercentile: null, povertyLine: 0 };
 
 /** Reads the live agent population (not a per-frame concern — polled on an interval, not tied
  * to the render loop) and derives where actual dollar amounts fall on the wealth-clustering axis. */
@@ -21,6 +22,7 @@ function computeScale(): ScaleState {
   const n = agents.length;
   if (n === 0) return EMPTY_SCALE;
 
+  const povertyLine = povertyLineAtTick(engineRunner.getTick());
   const sortedWealth = agents.map((a) => a.wealth).sort((a, b) => a - b);
   const axisTicks = AXIS_PERCENTILES.map((percentile) => ({
     percentile,
@@ -29,11 +31,11 @@ function computeScale(): ScaleState {
 
   let belowPoverty = 0;
   for (const wealth of sortedWealth) {
-    if (wealth <= POVERTY_LINE_ANNUAL) belowPoverty += 1;
+    if (wealth <= povertyLine) belowPoverty += 1;
   }
   const povertyPercentile = belowPoverty > 0 ? belowPoverty / n : null;
 
-  return { axisTicks, povertyPercentile };
+  return { axisTicks, povertyPercentile, povertyLine };
 }
 
 /** Static-ish overlay (updated on a 1s interval, not per animation frame) showing actual wealth
@@ -67,7 +69,7 @@ export function WealthScale() {
             className="absolute left-1.5 -top-[13px] text-[10px] font-medium whitespace-nowrap"
             style={{ color: 'var(--status-critical)' }}
           >
-            Poverty line (~{formatCompactUSD(POVERTY_LINE_ANNUAL)})
+            Poverty line (~{formatCompactUSD(scale.povertyLine)})
           </span>
         </div>
       )}
