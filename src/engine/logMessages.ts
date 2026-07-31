@@ -19,6 +19,30 @@ export function flightLog(tick: number, marginalRate: number, capGainsRate: numb
   };
 }
 
+export function financialDistressLog(tick: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'financial_distress',
+    message: 'Hit $0 net worth — credit damage and instability now dragging on income and cost of living.',
+  };
+}
+
+export function businessFailureLog(tick: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'business_failure',
+    message: 'Business failed after running out of money — back to W2 wage work.',
+  };
+}
+
+export function capitalReturnLog(tick: number): BehaviorLogEntry {
+  return {
+    tick,
+    kind: 'capital_return',
+    message: 'Repatriated capital as tax pressure eased — back in the active economy.',
+  };
+}
+
 export function auditCaughtLog(tick: number, fine: number): BehaviorLogEntry {
   return { tick, kind: 'audit_caught', message: `Audited and caught evading — fined ${usd(fine)}.` };
 }

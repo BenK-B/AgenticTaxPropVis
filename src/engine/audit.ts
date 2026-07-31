@@ -1,6 +1,7 @@
 import type { Agent, Policy } from '@/types';
 import type { RNG } from './random';
 import { shuffle } from './random';
+import { ARCHETYPE_CONFIGS } from './archetypes';
 
 export interface AuditOutcome {
   agentId: string;
@@ -11,10 +12,16 @@ export interface AuditOutcome {
   fine: number;
 }
 
-const AUDIT_DETECTION_RATE = 0.85;
 const FINE_MULTIPLIER = 1.75;
 const AUDIT_COOLDOWN_TICKS = 6;
 const PRIORITY_SHARE = 0.7;
+/**
+ * Real audit selection relies on imperfect observable risk signals (DIF-style scoring), not
+ * omniscient knowledge of who's actually cheating — this is the chance a true evader looks
+ * suspicious enough pre-audit to land in the priority pool at all. The rest blend in with
+ * everyone else and are only reachable via general (effectively random) selection.
+ */
+const EVADER_FLAG_DETECTION_CHANCE = 0.55;
 
 /**
  * Population-level audit pass, once per tick. `evadedTaxThisTick` maps agentId -> the tax
@@ -33,13 +40,16 @@ export function runAudits(
   const numAudited = Math.round(active.length * policy.auditBudgetPct);
   if (numAudited <= 0) return [];
 
-  const evadingPool = shuffle(
+  const flaggedPool = shuffle(
     active.filter(
-      (agent) => (evadedTaxThisTick.get(agent.id) ?? 0) > 0 && tick >= agent.auditCooldownUntil,
+      (agent) =>
+        (evadedTaxThisTick.get(agent.id) ?? 0) > 0 &&
+        tick >= agent.auditCooldownUntil &&
+        rng() < EVADER_FLAG_DETECTION_CHANCE,
     ),
     rng,
   );
-  const priority = evadingPool.slice(0, Math.floor(numAudited * PRIORITY_SHARE));
+  const priority = flaggedPool.slice(0, Math.floor(numAudited * PRIORITY_SHARE));
   const priorityIds = new Set(priority.map((agent) => agent.id));
   const remainderCount = Math.max(0, numAudited - priority.length);
   const general = shuffle(
@@ -54,7 +64,8 @@ export function runAudits(
       outcomes.push({ agentId: agent.id, agent, wasEvading: false, caught: false, fine: 0 });
       continue;
     }
-    const caught = rng() < AUDIT_DETECTION_RATE;
+    const detectionRate = ARCHETYPE_CONFIGS[agent.archetype].auditDetectionRate;
+    const caught = rng() < detectionRate;
     if (!caught) {
       outcomes.push({ agentId: agent.id, agent, wasEvading: true, caught: false, fine: 0 });
       continue;

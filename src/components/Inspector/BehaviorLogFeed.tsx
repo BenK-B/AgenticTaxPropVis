@@ -3,6 +3,7 @@ import type { BehaviorLogEntry, BehaviorLogKind } from '@/types';
 const KIND_COLOR: Record<BehaviorLogKind, string> = {
   evasion: 'var(--status-warning)',
   flight: 'var(--series-flight)',
+  capital_return: 'var(--status-good)',
   audit_caught: 'var(--status-critical)',
   audit_clear: 'var(--status-good)',
   write_off: 'var(--archetype-business)',
@@ -12,6 +13,8 @@ const KIND_COLOR: Record<BehaviorLogKind, string> = {
   income_boost: 'var(--status-good)',
   expense_shock: 'var(--status-warning)',
   windfall: 'var(--status-good)',
+  financial_distress: 'var(--status-critical)',
+  business_failure: 'var(--status-critical)',
 };
 
 export function BehaviorLogFeed({ entries }: { entries: BehaviorLogEntry[] }) {

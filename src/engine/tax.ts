@@ -1,11 +1,35 @@
-import type { AiTaxMechanisms, TaxBracket } from '@/types';
+import type { AiTaxMechanisms, Archetype, TaxBracket } from '@/types';
 import {
   AI_USAGE_ELASTICITY,
   ENERGY_MARKET_PRICE_PER_KWH,
   ENERGY_UNITS_PER_DOLLAR_AI_REVENUE,
+  PAYROLL_MEDICARE_RATE,
+  PAYROLL_SS_RATE,
+  PAYROLL_SS_WAGE_CAP_ANNUAL,
+  PAYROLL_W2_EMPLOYEE_SHARE,
   TOKEN_MARKET_PRICE_PER_1K,
   TOKEN_UNITS_PER_DOLLAR_AI_REVENUE,
 } from './constants';
+
+/**
+ * FICA-equivalent payroll/self-employment tax on earned income (wages or business profit) —
+ * capital gains and AI-mechanism taxes are computed separately. HNW_Investor income here is
+ * passive capital return, not earned income, so it isn't subject to payroll tax at all, matching
+ * how real investment income is treated. Self-employed archetypes (Freelancer, Business_Owner)
+ * bear the full combined rate (both the employee and employer share); a W2 wage earner only bears
+ * the employee half — the employer-paid half is real but isn't a cost to the agent's own wealth.
+ * Social Security's share is capped at an annual wage base (approximated from this month's rate
+ * annualized, since agents don't track cumulative year-to-date earnings); Medicare's isn't.
+ */
+export function calculatePayrollTax(monthlyEarnedIncome: number, archetype: Archetype): number {
+  if (archetype === 'HNW_Investor' || monthlyEarnedIncome <= 0) return 0;
+  const share = archetype === 'W2_Worker' ? PAYROLL_W2_EMPLOYEE_SHARE : 1;
+  const annualizedIncome = monthlyEarnedIncome * 12;
+  const ssTaxableMonthly = Math.min(annualizedIncome, PAYROLL_SS_WAGE_CAP_ANNUAL) / 12;
+  const ssTax = ssTaxableMonthly * PAYROLL_SS_RATE * share;
+  const medicareTax = monthlyEarnedIncome * PAYROLL_MEDICARE_RATE * share;
+  return ssTax + medicareTax;
+}
 
 /** Progressive tax on monthly income; brackets store annual thresholds, divided by 12 here. */
 export function calculateBracketTax(monthlyTaxableIncome: number, brackets: readonly TaxBracket[]): number {

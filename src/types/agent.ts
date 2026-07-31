@@ -10,6 +10,7 @@ export interface AgentHistoryEntry {
 export type BehaviorLogKind =
   | 'evasion'
   | 'flight'
+  | 'capital_return'
   | 'audit_caught'
   | 'audit_clear'
   | 'write_off'
@@ -18,7 +19,9 @@ export type BehaviorLogKind =
   | 'job_loss'
   | 'income_boost'
   | 'expense_shock'
-  | 'windfall';
+  | 'windfall'
+  | 'financial_distress'
+  | 'business_failure';
 
 export interface BehaviorLogEntry {
   tick: number;
@@ -45,6 +48,15 @@ export interface Agent {
   aiShieldFraction: number;
   /** Current annual cost-of-living, re-rolled once per sim-year within the archetype's range. */
   costOfLivingAnnual: number;
+  /** Running net capital return not yet tax-settled this sim-year — settled once a year (see
+   * tick.ts) so gains and losses net against each other like a real annual filing, rather than
+   * taxing every up month with no credit for down months. Negative balances carry forward. */
+  pendingCapitalGain: number;
+  /** Months of "financial distress" (income/cost-of-living penalty) remaining — triggered by
+   * hitting $0 net worth and refreshed every month spent there, then ticks down for a while even
+   * after recovering above $0, mirroring how credit damage/instability outlasts the shortfall
+   * itself. 0 = not currently in distress. */
+  distressMonthsRemaining: number;
   /** 1 = normal; temporarily <1 during a job loss/slump or >1 during a bonus/boom. */
   incomeShockMultiplier: number;
   /** Months left before incomeShockMultiplier reverts to 1. */

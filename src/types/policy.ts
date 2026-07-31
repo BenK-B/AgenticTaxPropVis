@@ -48,6 +48,10 @@ export interface UbiPolicy {
 export interface Policy {
   brackets: [TaxBracket, TaxBracket, TaxBracket];
   capitalGainsRate: number;
+  /** Annual amount of earned income excluded from bracket tax entirely, before brackets apply —
+   * a simplified stand-in for the real standard deduction (doesn't affect payroll tax, which in
+   * reality applies to gross wages/self-employment earnings regardless of income-tax deductions). */
+  standardDeductionAnnual: number;
   /** 0-1, fraction of active population audited per tick. */
   auditBudgetPct: number;
   /** UBI is funded entirely by AI/automation tax revenue, not general appropriation. */

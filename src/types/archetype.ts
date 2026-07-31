@@ -54,6 +54,20 @@ export interface ArchetypeConfig {
    * just grow more slowly.
    */
   costOfLivingAnnualRange: [number, number];
+  /**
+   * 0-1: how *able* an agent is to conceal income from the tax authority, independent of
+   * willingness. Real W2 wages are third-party withheld/reported, making evasion nearly
+   * impossible regardless of how tax-averse the earner is; self-employment/cash income is far
+   * easier to underreport. Multiplies decideEvasion's whole propensity (baseline + rate-driven).
+   */
+  evasionOpportunity: number;
+  /**
+   * 0-1: given an audit actually happens, how likely it is to catch real evasion. Wage evasion
+   * (already rare, see evasionOpportunity) leaves an obvious paper trail against W2 reporting;
+   * cash/self-employment income is genuinely harder to verify; sophisticated HNW returns are
+   * harder to fully unwind despite deep audit resources, matching real-world IRS experience.
+   */
+  auditDetectionRate: number;
   riskToleranceRange: [number, number];
   taxSensitivityRange: [number, number];
   /** Fraction of revenue/gains tied to AI or automation, drawn uniform(range). */

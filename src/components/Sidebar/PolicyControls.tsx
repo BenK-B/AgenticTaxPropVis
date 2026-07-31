@@ -1,5 +1,5 @@
 import { useSimStore } from '@/state/useSimStore';
-import { formatPercent } from '@/utils/format';
+import { formatPercent, formatUSD } from '@/utils/format';
 import { cssVar } from '../Canvas/colorMap';
 import { FieldRow } from './FieldRow';
 import { BracketSliders } from './BracketSliders';
@@ -12,6 +12,16 @@ export function PolicyControls() {
     <div className="card">
       <div className="section-title mb-2">Tax &amp; enforcement policy</div>
       <BracketSliders />
+      <FieldRow
+        label="Standard deduction"
+        value={policy.standardDeductionAnnual}
+        onChange={(v) => setPolicy({ standardDeductionAnnual: v })}
+        min={0}
+        max={40000}
+        step={500}
+        accentColor={cssVar('--archetype-w2')}
+        formatValue={formatUSD}
+      />
       <FieldRow
         label="Capital gains rate"
         value={policy.capitalGainsRate}

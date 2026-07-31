@@ -9,9 +9,9 @@ export {
   MAX_TICKS_PER_FRAME,
   METRICS_HISTORY_LENGTH,
 } from './constants';
-export { calculateBracketTax, marginalRateFor, calculateBusinessAiTax, calculateEquityCaptureTax } from './tax';
+export { calculateBracketTax, marginalRateFor, calculateBusinessAiTax, calculateEquityCaptureTax, calculatePayrollTax } from './tax';
 export type { AiTaxResult } from './tax';
-export { decideEvasion, decideAiShield, decideCapitalFlight, writeOffFactorFor } from './behavior';
+export { decideEvasion, decideAiShield, decideCapitalFlight, decideCapitalReturn, writeOffFactorFor } from './behavior';
 export { runAudits } from './audit';
 export type { AuditOutcome } from './audit';
 export { computeTargetPosition, updatePositionForFrame } from './position';

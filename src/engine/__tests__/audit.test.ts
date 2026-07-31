@@ -18,6 +18,8 @@ function makeAgent(id: string, overrides: Partial<Agent> = {}): Agent {
     auditCooldownUntil: 0,
     aiExposure: 0,
     costOfLivingAnnual: 30000,
+    pendingCapitalGain: 0,
+    distressMonthsRemaining: 0,
     aiShieldFraction: 0,
     incomeShockMultiplier: 1,
     incomeShockMonthsRemaining: 0,
@@ -32,7 +34,8 @@ function makeAgent(id: string, overrides: Partial<Agent> = {}): Agent {
   };
 }
 
-/** Always returns 0 so shuffles are stable-ish and every detection roll ("< 0.85") succeeds. */
+/** Always returns 0 so shuffles are stable-ish and every flagging/detection roll succeeds
+ * (0 < any positive threshold). Default makeAgent archetype is Freelancer (auditDetectionRate 0.65). */
 const alwaysZeroRng = () => 0;
 
 describe('runAudits', () => {

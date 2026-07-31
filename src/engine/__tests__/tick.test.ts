@@ -156,7 +156,10 @@ describe('tick', () => {
       };
     }
 
-    it('accrues captured equity into the fund without recognizing it as AI-tax revenue on non-liquidation ticks', () => {
+    it('captures nothing until the first annual settlement (tick 12), even with equity capture enabled', () => {
+      // Capital gains (and the AI-linked share of them) net over the whole sim-year and settle
+      // once, rather than taxing every positive month — see tick.ts's pendingCapitalGain
+      // settlement. So the fund should stay at exactly $0 for the 11 months before that.
       let state = makeInitialState(400, 61);
       const rng = mulberry32(62);
       const policy = equityPolicy();
@@ -165,8 +168,12 @@ describe('tick', () => {
         state = result.state;
         expect(result.metrics.equityFundLiquidated).toBe(0);
         expect(result.metrics.aiTaxRevenueCollected).toBe(0);
+        expect(state.equityFundBalance).toBe(0);
       }
-      expect(state.equityFundBalance).toBeGreaterThan(0);
+      // The 12th tick settles the year's accumulated gains into the fund and immediately
+      // liquidates a slice of it.
+      const result = tick(state, policy, DEFAULT_BEHAVIOR_WEIGHTS, rng, 11 * 20);
+      expect(result.metrics.equityFundLiquidated).toBeGreaterThan(0);
     });
 
     it('liquidates the configured share of the fund every 12th tick and feeds it into the AI-tax pot', () => {

@@ -141,6 +141,12 @@ export function AiTaxMechanismsCard() {
           When on, 100% of the AI/automation tax revenue above is paid out to active agents each
           month — not a separate budget line. It's a pure redistribution of that pot.
         </p>
+        {ubi.enabled && MECHANISM_ORDER.every((key) => !mechanisms[key].enabled) && (
+          <p className="text-[10.5px] leading-snug mt-1" style={{ color: 'var(--status-warning)' }}>
+            No AI/automation tax mechanism is enabled above, so this pot is $0 — UBI is on but
+            currently paying out nothing.
+          </p>
+        )}
         <div className="flex items-center justify-between gap-2 mt-2">
           <span className={`text-xs ${ubi.enabled ? 'text-text-secondary' : 'text-text-muted/40'}`}>Progressivity</span>
           <span className={`text-[11px] tabular-nums ${ubi.enabled ? 'text-text-muted' : 'text-text-muted/40'}`}>

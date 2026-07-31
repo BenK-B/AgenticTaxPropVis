@@ -27,6 +27,8 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     auditCooldownUntil: 0,
     aiExposure: 0.3,
     costOfLivingAnnual: 30000,
+    pendingCapitalGain: 0,
+    distressMonthsRemaining: 0,
     aiShieldFraction: 0,
     incomeShockMultiplier: 1,
     incomeShockMonthsRemaining: 0,
@@ -74,7 +76,7 @@ describe('writeOffFactorFor', () => {
 describe('decideEvasion', () => {
   it('triggers when the roll lands under the computed probability', () => {
     const agent = makeAgent({ riskTolerance: 1 });
-    const triggered = decideEvasion(agent, 0.5, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([0.01, 0.3]));
+    const triggered = decideEvasion(agent, 0.5, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([0.01, 0.3]), 1);
     expect(triggered).toBe(true);
     expect(agent.complianceStatus).toBe('evading');
     expect(agent.evasionFraction).toBeGreaterThanOrEqual(0.2);
@@ -83,14 +85,14 @@ describe('decideEvasion', () => {
 
   it('does not trigger when the roll lands above the computed probability', () => {
     const agent = makeAgent({ riskTolerance: 1 });
-    const triggered = decideEvasion(agent, 0.5, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([0.99]));
+    const triggered = decideEvasion(agent, 0.5, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([0.99]), 1);
     expect(triggered).toBe(false);
     expect(agent.complianceStatus).toBe('compliant');
   });
 
   it('never re-rolls an agent that is already evading or audited', () => {
     const evading = makeAgent({ complianceStatus: 'evading' });
-    expect(decideEvasion(evading, 0.9, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([0]))).toBe(false);
+    expect(decideEvasion(evading, 0.9, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([0]), 1)).toBe(false);
   });
 
   it('a higher marginal rate strictly increases evasion probability, all else equal', () => {
@@ -98,8 +100,8 @@ describe('decideEvasion', () => {
     const lowPressureAgent = makeAgent({ riskTolerance: 0.9 });
     const highPressureAgent = makeAgent({ riskTolerance: 0.9 });
     const roll = 0.15;
-    const lowTriggered = decideEvasion(lowPressureAgent, 0.26, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([roll]));
-    const highTriggered = decideEvasion(highPressureAgent, 0.6, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([roll]));
+    const lowTriggered = decideEvasion(lowPressureAgent, 0.26, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([roll]), 1);
+    const highTriggered = decideEvasion(highPressureAgent, 0.6, DEFAULT_POLICY, NEUTRAL_WEIGHTS, stubRng([roll]), 1);
     expect(highTriggered).toBe(true);
     expect(lowTriggered).toBe(false);
   });

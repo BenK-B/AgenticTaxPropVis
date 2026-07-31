@@ -35,6 +35,36 @@ export const TOKEN_UNITS_PER_DOLLAR_AI_REVENUE = 5; // 1,000-token units consume
 export const ENERGY_MARKET_PRICE_PER_KWH = 0.15; // $ per kWh
 export const ENERGY_UNITS_PER_DOLLAR_AI_REVENUE = 0.3; // kWh consumed per $1 of AI-attributed revenue
 
+/**
+ * FICA-equivalent payroll/self-employment tax rates (2024 US real-world figures), applied
+ * separately from bracket income tax — see calculatePayrollTax in tax.ts.
+ */
+export const PAYROLL_SS_RATE = 0.124; // combined employee+employer (or full self-employment) share
+export const PAYROLL_MEDICARE_RATE = 0.029; // combined, uncapped
+export const PAYROLL_SS_WAGE_CAP_ANNUAL = 168600;
+export const PAYROLL_W2_EMPLOYEE_SHARE = 0.5; // a W2 worker only bears the employee half
+
+/**
+ * Legal tax-avoidance behaviors (Business_Owner write-offs, AI-tax shielding) have real overhead
+ * in reality — accountants, restructuring, compliance costs — not a costless shelter. This is the
+ * fraction of the tax actually avoided via AI shielding that's eaten by that overhead instead of
+ * staying in the agent's pocket (still net-beneficial to shield, just not free). Business_Owner
+ * write-offs get their own, more direct cost: the written-off amount is real reinvestment spend,
+ * not free money — see the write-off handling in tick.ts.
+ */
+export const AI_SHIELD_OVERHEAD_RATE = 0.15;
+
+/**
+ * Hitting exactly $0 net worth has real consequences in reality — credit damage, eviction risk,
+ * payday-loan-priced necessities, unreliable transportation disrupting work — that compound the
+ * difficulty of climbing back out, not just reflect being poor. Every month spent at $0 refreshes
+ * the distress window; it then lingers for DISTRESS_DURATION_MONTHS after recovering above $0,
+ * since real credit/instability damage doesn't clear the instant a bill gets paid.
+ */
+export const DISTRESS_DURATION_MONTHS = 3;
+export const DISTRESS_INCOME_MULTIPLIER = 0.96; // ~4% income penalty while in distress
+export const DISTRESS_COST_OF_LIVING_MULTIPLIER = 1.05; // ~5% cost-of-living penalty while in distress
+
 /** Approximate annual individual poverty threshold (rounded from real US federal guidelines),
  * used as a wealth/net-worth reference line on the canvas — not a precise legal figure. */
 export const POVERTY_LINE_ANNUAL = 15000;
@@ -64,6 +94,7 @@ export const DEFAULT_POLICY: Policy = {
     { threshold: 180000, rate: 0.37 },
   ],
   capitalGainsRate: 0.15,
+  standardDeductionAnnual: 14600, // matches the real 2024 US single-filer standard deduction
   auditBudgetPct: 0.02,
   ubi: { enabled: false, taperStrength: 0 },
   aiTaxMechanisms: {
