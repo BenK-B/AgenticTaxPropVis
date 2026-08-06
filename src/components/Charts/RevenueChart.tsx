@@ -1,23 +1,31 @@
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useSimStore } from '@/state/useSimStore';
+import { trailingAnnualSeries } from '@/state/annualize';
 import { formatUSD } from '@/utils/format';
 import { ChartCard } from './ChartCard';
 import { ChartTooltip } from './ChartTooltip';
 
 export function RevenueChart() {
   const metricsHistory = useSimStore((s) => s.metricsHistory);
-  const data = metricsHistory.map((m) => {
+  // Capital gains / equity-capture / equity-fund-liquidation revenue settles once a sim-year
+  // rather than smoothly every tick (see tick.ts), so a raw per-tick read spikes ~4-10x on the
+  // settlement month. Rolling over a trailing 12-tick window turns that into the smooth annual
+  // run-rate it actually represents, instead of a once-a-year sawtooth.
+  const data = trailingAnnualSeries(metricsHistory).map((m) => {
     const perAgent = m.activeAgentCount > 0 ? m.activeAgentCount : 1;
     return {
       tick: m.tick,
-      Collected: m.taxRevenueCollected / perAgent,
-      Evaded: m.taxRevenueEvaded / perAgent,
-      Avoided: m.taxRevenueAvoided / perAgent,
+      Collected: m.taxRevenueCollected / 12 / perAgent,
+      Evaded: m.taxRevenueEvaded / 12 / perAgent,
+      Avoided: m.taxRevenueAvoided / 12 / perAgent,
     };
   });
 
   return (
-    <ChartCard title="Tax revenue per agent: collected / evaded / avoided" subtitle="Monthly $ per active agent, averaged across the population">
+    <ChartCard
+      title="Tax revenue per agent: collected / evaded / avoided"
+      subtitle="Trailing 12-month average, $ per active agent — smooths the once-a-year capital-gains/equity settlement into a steady run rate"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--gridline)" vertical={false} />
